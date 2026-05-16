@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>心理倾向观察问卷</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="phone-shell" aria-live="polite">
+      <div class="sea-stain" aria-hidden="true"></div>
+      <div class="snow-layer" id="snowLayer" aria-hidden="true"></div>
+      <div class="cursor-breath" id="cursorBreath" aria-hidden="true"></div>
+      <div class="notice-stack" id="noticeStack"></div>
+
+      <button class="narwhal" id="narwhal" aria-label="蓝色独角鲸标志" type="button">
+        <svg viewBox="0 0 96 64" role="img" aria-hidden="true">
+          <path class="horn" d="M23 24 2 15 18 33z" />
+          <path class="body" d="M18 36c6-14 24-22 45-19 16 2 25 10 28 20-7 9-21 14-38 13-18-1-31-6-35-14z" />
+          <path class="back" d="M29 26c12-7 35-7 51 5-17-5-36-4-51 4z" />
+          <path class="belly" d="M27 42c13 6 32 8 51-1-9 10-36 14-51 1z" />
+          <path class="tail" d="M86 37 96 24l-3 17 3 15-11-10-10 7 4-14-4-13z" />
+          <circle class="eye" cx="28" cy="31" r="1.7" />
+        </svg>
+      </button>
+
+      <section class="card" id="card">
+        <p class="kicker" id="kicker"></p>
+        <h1 id="title">《心理倾向观察问卷》</h1>
+        <p class="subtitle" id="subtitle">本问卷将根据你的回答生成情绪关系分析。</p>
+        <div class="content" id="content"></div>
+        <div class="actions" id="actions"></div>
+      </section>
+
+      <p class="footer-note" id="footerNote">你的回答会被认真阅读。</p>
+      <div class="whisper" id="whisper"></div>
+      <div class="intrusion-input" id="intrusionInput" aria-hidden="true">
+        <span class="intrusion-text" id="intrusionText"></span>
+      </div>
+      <div class="veil" id="veil"></div>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
