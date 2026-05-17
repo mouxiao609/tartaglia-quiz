@@ -297,16 +297,36 @@ function setSeaVolume(value, seconds = 1.2) {
 
 function tickSound() {
   if (!audioCtx) return;
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = "sine";
-  osc.frequency.value = 780 + Math.random() * 90;
-  gain.gain.value = 0.0001;
-  gain.gain.setTargetAtTime(0.018, audioCtx.currentTime, 0.01);
-  gain.gain.setTargetAtTime(0.0001, audioCtx.currentTime + 0.025, 0.03);
-  osc.connect(gain).connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.09);
+  const now = audioCtx.currentTime;
+  const click = audioCtx.createOscillator();
+  const body = audioCtx.createOscillator();
+  const clickGain = audioCtx.createGain();
+  const bodyGain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = "highpass";
+  filter.frequency.value = 520;
+  filter.Q.value = 0.7;
+
+  click.type = "square";
+  click.frequency.value = 1320 + Math.random() * 260;
+  body.type = "triangle";
+  body.frequency.value = 430 + Math.random() * 80;
+
+  clickGain.gain.setValueAtTime(0.0001, now);
+  clickGain.gain.exponentialRampToValueAtTime(0.034, now + 0.006);
+  clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+
+  bodyGain.gain.setValueAtTime(0.0001, now);
+  bodyGain.gain.exponentialRampToValueAtTime(0.014, now + 0.01);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
+
+  click.connect(clickGain).connect(filter);
+  body.connect(bodyGain).connect(filter);
+  filter.connect(audioCtx.destination);
+  click.start(now);
+  body.start(now);
+  click.stop(now + 0.055);
+  body.stop(now + 0.08);
 }
 
 function lowBreathe() {
@@ -646,7 +666,7 @@ async function runMonologueIntro() {
   await typeIntrusion("虽然你也一直在躲我。", { y: "mid", linger: 540, connected: true, keep: true });
   await typeIntrusion("不过没关系。", { y: "upper-mid", linger: 430, connected: true, keep: true });
   await typeIntrusion("我有的是时间。", { y: "upper-mid", linger: 520, connected: true, keep: true });
-  await typeIntrusion("而且我很擅长追人。", { y: "high-mid", linger: 1050, connected: true, keep: true });
+  await typeIntrusion("而且我很擅长追猎。", { y: "high-mid", linger: 1050, connected: true, keep: true });
   narwhal.classList.remove("far");
 }
 
