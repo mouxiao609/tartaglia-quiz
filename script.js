@@ -9,9 +9,6 @@ const whisper = document.querySelector("#whisper");
 const veil = document.querySelector("#veil");
 const noticeStack = document.querySelector("#noticeStack");
 const narwhal = document.querySelector("#narwhal");
-const tartagliaBg = document.querySelector("#tartagliaBg");
-const tartagliaHead = document.querySelector("#tartagliaHead");
-const tartagliaSee = document.querySelector("#tartagliaSee");
 const snowLayer = document.querySelector("#snowLayer");
 const cursorBreath = document.querySelector("#cursorBreath");
 const intrusionInput = document.querySelector("#intrusionInput");
@@ -44,6 +41,14 @@ let musicStarted = false;
 let musicLoopDucking = false;
 let headMemoryPlayed = false;
 let bgRetired = false;
+let activeVideo = null;
+let activeVideoName = "";
+
+const videoSources = {
+  bg: "tartaglia-bg.mp4",
+  head: "tartaglia-head.mp4",
+  see: "tartaglia-see.mp4",
+};
 
 const narwhalPositions = [
   { x: 0, y: 0, s: 1 },
@@ -202,6 +207,35 @@ function safePlayVideo(video) {
   if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
 }
 
+function unmountVideo() {
+  if (!activeVideo) return;
+  activeVideo.pause();
+  activeVideo.removeAttribute("src");
+  activeVideo.load();
+  activeVideo.remove();
+  activeVideo = null;
+  activeVideoName = "";
+}
+
+function mountVideo(name, options = {}) {
+  if (activeVideoName === name && activeVideo) return activeVideo;
+  unmountVideo();
+  const video = document.createElement("video");
+  video.className = `tartaglia-bg${name === "head" ? " tartaglia-head" : ""}${name === "see" ? " tartaglia-see" : ""}`;
+  video.muted = true;
+  video.loop = Boolean(options.loop);
+  video.playsInline = true;
+  video.preload = "auto";
+  video.setAttribute("playsinline", "");
+  video.setAttribute("webkit-playsinline", "");
+  video.setAttribute("aria-hidden", "true");
+  video.src = videoSources[name];
+  app.insertBefore(video, app.firstChild);
+  activeVideo = video;
+  activeVideoName = name;
+  return video;
+}
+
 function showVideoLayer(name) {
   app.classList.toggle("video-head-active", name === "head");
   app.classList.toggle("video-see-active", name === "see");
@@ -210,50 +244,45 @@ function showVideoLayer(name) {
 
 function showBgVideo() {
   if (bgRetired) {
-    if (tartagliaBg) tartagliaBg.pause();
+    if (activeVideoName === "bg") unmountVideo();
     app.classList.add("video-bg-retired");
     return;
   }
   showVideoLayer("bg");
-  if (tartagliaBg) tartagliaBg.style.opacity = "";
-  safePlayVideo(tartagliaBg);
-  if (tartagliaHead) tartagliaHead.pause();
-  if (tartagliaSee) tartagliaSee.pause();
+  app.classList.remove("video-bg-retired");
+  safePlayVideo(mountVideo("bg", { loop: true }));
 }
 
 async function playHeadLook(options = {}) {
   const { thenSee = false, force = false } = options;
-  if (!tartagliaHead || (!force && headMemoryPlayed && !thenSee)) return;
+  if (!force && headMemoryPlayed && !thenSee) return;
   if (thenSee) {
     bgRetired = true;
     app.classList.add("video-bg-retired");
-    if (tartagliaBg) tartagliaBg.pause();
   }
   if (!thenSee) headMemoryPlayed = true;
   app.classList.add("look-pause");
   setSeaVolume(0.011, 3.8);
   setMusicVolume(thenSee ? 0.024 : 0.016, 5.5);
-  if (tartagliaHead) {
-    tartagliaHead.loop = false;
-    tartagliaHead.currentTime = 0;
-  }
+  const headVideo = mountVideo("head", { loop: false });
+  headVideo.currentTime = 0;
   showVideoLayer("head");
-  safePlayVideo(tartagliaHead);
+  safePlayVideo(headVideo);
   await new Promise((resolve) => {
     const fallback = window.setTimeout(resolve, 4700);
     const done = () => {
       window.clearTimeout(fallback);
-      tartagliaHead.removeEventListener("ended", done);
+      headVideo.removeEventListener("ended", done);
       resolve();
     };
-    tartagliaHead.addEventListener("ended", done, { once: true });
+    headVideo.addEventListener("ended", done, { once: true });
   });
   app.classList.remove("look-pause");
-  if (thenSee && tartagliaSee) {
-    tartagliaSee.currentTime = 0;
-    if (tartagliaBg) tartagliaBg.pause();
+  if (thenSee) {
+    const seeVideo = mountVideo("see", { loop: true });
+    seeVideo.currentTime = 0;
     showVideoLayer("see");
-    safePlayVideo(tartagliaSee);
+    safePlayVideo(seeVideo);
   } else {
     showBgVideo();
   }
@@ -435,9 +464,15 @@ function renderIntro() {
   btn.className = "start-btn";
   btn.type = "button";
   btn.textContent = "开始测试";
-  btn.addEventListener("click", () => transitionTo("q1", { delay: 420 }));
+  btn.addEventListener("click", beginExperience);
   actions.append(btn);
   resetIdleTimer();
+}
+
+async function beginExperience() {
+  armAudio();
+  showBgVideo();
+  await transitionTo("q1", { delay: 420 });
 }
 
 function renderQuestion(id, opts = {}) {
