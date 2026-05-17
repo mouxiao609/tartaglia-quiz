@@ -140,6 +140,27 @@ input {
   display: none;
 }
 
+.sound-test {
+  position: fixed;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(151, 202, 231, 0.22);
+  border-radius: 8px;
+  background: rgba(9, 15, 22, 0.78);
+  color: rgba(218, 236, 246, 0.8);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.sound-test:focus-visible,
+.sound-test:hover {
+  border-color: rgba(151, 202, 231, 0.42);
+  outline: none;
+}
+
 .winter-state .tartaglia-bg:not(.tartaglia-head):not(.tartaglia-see) {
   opacity: 0.052;
 }

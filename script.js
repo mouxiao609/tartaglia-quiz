@@ -17,6 +17,8 @@ const cursorBreath = document.querySelector("#cursorBreath");
 const intrusionInput = document.querySelector("#intrusionInput");
 const intrusionText = document.querySelector("#intrusionText");
 const ambientBgm = document.querySelector("#ambientBgm");
+const soundTest = document.querySelector("#soundTest");
+const diagnosticAudio = new Audio("snowfall.mp3");
 
 let step = "intro";
 let locked = false;
@@ -109,6 +111,9 @@ function armAudio() {
 
 function startAmbientMusic() {
   if (!ambientBgm || musicStarted) return;
+  console.log("[snowfall] audio element:", ambientBgm);
+  console.log("[snowfall] source path:", ambientBgm.querySelector("source")?.getAttribute("src"));
+  ambientBgm.muted = false;
   ambientBgm.volume = 0;
   ambientBgm.loop = true;
   const playAttempt = ambientBgm.play();
@@ -118,13 +123,48 @@ function startAmbientMusic() {
         musicStarted = true;
         setMusicVolume(musicTarget, 9);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.log("[snowfall] ambient play failed:", error);
         musicStarted = false;
       });
   } else {
     musicStarted = true;
     setMusicVolume(musicTarget, 9);
   }
+}
+
+function forcePlayAmbientForGesture() {
+  if (!ambientBgm) {
+    console.log("[snowfall] ambient audio element missing");
+    return;
+  }
+  ambientBgm.muted = false;
+  ambientBgm.volume = 0.5;
+  ambientBgm.loop = true;
+  ambientBgm
+    .play()
+    .then(() => {
+      console.log("[snowfall] ambient gesture play ok");
+      musicStarted = true;
+      window.setTimeout(() => setMusicVolume(musicTarget, 5), 650);
+    })
+    .catch((error) => {
+      console.log("[snowfall] ambient gesture play failed:", error);
+    });
+}
+
+function playSoundTest(event) {
+  event.stopPropagation();
+  diagnosticAudio.pause();
+  diagnosticAudio.currentTime = 0;
+  diagnosticAudio.muted = false;
+  diagnosticAudio.volume = 0.5;
+  diagnosticAudio.loop = true;
+  console.log("[snowfall] diagnostic Audio object:", diagnosticAudio);
+  diagnosticAudio
+    .play()
+    .then(() => console.log("[snowfall] diagnostic play ok"))
+    .catch((error) => console.log("[snowfall] diagnostic play failed:", error));
 }
 
 function setMusicVolume(value, seconds = 5) {
@@ -921,6 +961,7 @@ async function renderColdEnding() {
 window.addEventListener("pointermove", trackPointer, { passive: true });
 window.addEventListener("pointerdown", () => {
   armAudio();
+  forcePlayAmbientForGesture();
   resetIdleTimer();
 });
 window.addEventListener("keydown", () => {
@@ -929,7 +970,19 @@ window.addEventListener("keydown", () => {
 });
 if (ambientBgm) {
   ambientBgm.volume = 0;
+  ambientBgm.muted = false;
+  ambientBgm.loop = true;
   ambientBgm.addEventListener("timeupdate", watchMusicLoop);
+}
+
+if (diagnosticAudio) {
+  diagnosticAudio.loop = true;
+  diagnosticAudio.preload = "auto";
+}
+
+if (soundTest) {
+  soundTest.addEventListener("pointerdown", (event) => event.stopPropagation());
+  soundTest.addEventListener("click", playSoundTest);
 }
 
 window.addEventListener("load", () => {
