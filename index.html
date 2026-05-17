@@ -8,6 +8,18 @@
   </head>
   <body>
     <main class="phone-shell" aria-live="polite">
+      <video class="tartaglia-bg" id="tartagliaBg" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="tartaglia-bg.mp4" type="video/mp4" />
+      </video>
+      <video class="tartaglia-bg tartaglia-head" id="tartagliaHead" muted playsinline preload="metadata" aria-hidden="true">
+        <source src="tartaglia-head.mp4" type="video/mp4" />
+      </video>
+      <video class="tartaglia-bg tartaglia-see" id="tartagliaSee" muted loop playsinline preload="metadata" aria-hidden="true">
+        <source src="tartaglia-see.mp4" type="video/mp4" />
+      </video>
+      <audio class="ambient-bgm" id="ambientBgm" autoplay loop preload="auto" aria-hidden="true">
+        <source src="snowfall.mp3" type="audio/mpeg" />
+      </audio>
       <div class="sea-stain" aria-hidden="true"></div>
       <div class="snow-layer" id="snowLayer" aria-hidden="true"></div>
       <div class="cursor-breath" id="cursorBreath" aria-hidden="true"></div>

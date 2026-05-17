@@ -9,10 +9,14 @@ const whisper = document.querySelector("#whisper");
 const veil = document.querySelector("#veil");
 const noticeStack = document.querySelector("#noticeStack");
 const narwhal = document.querySelector("#narwhal");
+const tartagliaBg = document.querySelector("#tartagliaBg");
+const tartagliaHead = document.querySelector("#tartagliaHead");
+const tartagliaSee = document.querySelector("#tartagliaSee");
 const snowLayer = document.querySelector("#snowLayer");
 const cursorBreath = document.querySelector("#cursorBreath");
 const intrusionInput = document.querySelector("#intrusionInput");
 const intrusionText = document.querySelector("#intrusionText");
+const ambientBgm = document.querySelector("#ambientBgm");
 
 let step = "intro";
 let locked = false;
@@ -32,6 +36,12 @@ let lastPointer = { x: window.innerWidth * 0.5, y: window.innerHeight * 0.5 };
 let audioCtx;
 let seaOsc;
 let seaGain;
+let musicTarget = 0.014;
+let musicFadeFrame = 0;
+let musicStarted = false;
+let musicLoopDucking = false;
+let headMemoryPlayed = false;
+let bgRetired = false;
 
 const narwhalPositions = [
   { x: 0, y: 0, s: 1 },
@@ -82,6 +92,7 @@ function sleep(ms) {
 }
 
 function armAudio() {
+  startAmbientMusic();
   if (audioCtx) return;
   const Ctx = window.AudioContext || window.webkitAudioContext;
   if (!Ctx) return;
@@ -94,6 +105,118 @@ function armAudio() {
   seaOsc.connect(seaGain).connect(audioCtx.destination);
   seaOsc.start();
   setSeaVolume(0.006, 3.5);
+}
+
+function startAmbientMusic() {
+  if (!ambientBgm || musicStarted) return;
+  ambientBgm.volume = 0;
+  ambientBgm.loop = true;
+  const playAttempt = ambientBgm.play();
+  if (playAttempt && typeof playAttempt.then === "function") {
+    playAttempt
+      .then(() => {
+        musicStarted = true;
+        setMusicVolume(musicTarget, 9);
+      })
+      .catch(() => {
+        musicStarted = false;
+      });
+  } else {
+    musicStarted = true;
+    setMusicVolume(musicTarget, 9);
+  }
+}
+
+function setMusicVolume(value, seconds = 5) {
+  if (!ambientBgm) return;
+  musicTarget = Math.max(0, Math.min(value, 0.09));
+  window.cancelAnimationFrame(musicFadeFrame);
+  const start = ambientBgm.volume || 0;
+  const began = performance.now();
+  const duration = Math.max(300, seconds * 1000);
+  const tick = (now) => {
+    const progress = Math.min(1, (now - began) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    ambientBgm.volume = start + (musicTarget - start) * eased;
+    if (progress < 1) musicFadeFrame = window.requestAnimationFrame(tick);
+  };
+  musicFadeFrame = window.requestAnimationFrame(tick);
+}
+
+function watchMusicLoop() {
+  if (!ambientBgm || !Number.isFinite(ambientBgm.duration)) return;
+  const remaining = ambientBgm.duration - ambientBgm.currentTime;
+  if (remaining < 2.8 && !musicLoopDucking) {
+    musicLoopDucking = true;
+    setMusicVolume(Math.max(0.004, musicTarget * 0.58), 1.6);
+  }
+  if (ambientBgm.currentTime < 1.2 && musicLoopDucking) {
+    musicLoopDucking = false;
+    setMusicVolume(musicTarget, 2.8);
+  }
+}
+
+function safePlayVideo(video) {
+  if (!video) return;
+  const attempt = video.play();
+  if (attempt && typeof attempt.catch === "function") attempt.catch(() => {});
+}
+
+function showVideoLayer(name) {
+  app.classList.toggle("video-head-active", name === "head");
+  app.classList.toggle("video-see-active", name === "see");
+  app.classList.toggle("video-bg-soft", name !== "bg");
+}
+
+function showBgVideo() {
+  if (bgRetired) {
+    if (tartagliaBg) tartagliaBg.pause();
+    app.classList.add("video-bg-retired");
+    return;
+  }
+  showVideoLayer("bg");
+  if (tartagliaBg) tartagliaBg.style.opacity = "";
+  safePlayVideo(tartagliaBg);
+  if (tartagliaHead) tartagliaHead.pause();
+  if (tartagliaSee) tartagliaSee.pause();
+}
+
+async function playHeadLook(options = {}) {
+  const { thenSee = false, force = false } = options;
+  if (!tartagliaHead || (!force && headMemoryPlayed && !thenSee)) return;
+  if (thenSee) {
+    bgRetired = true;
+    app.classList.add("video-bg-retired");
+    if (tartagliaBg) tartagliaBg.pause();
+  }
+  if (!thenSee) headMemoryPlayed = true;
+  app.classList.add("look-pause");
+  setSeaVolume(0.011, 3.8);
+  setMusicVolume(thenSee ? 0.024 : 0.016, 5.5);
+  if (tartagliaHead) {
+    tartagliaHead.loop = false;
+    tartagliaHead.currentTime = 0;
+  }
+  showVideoLayer("head");
+  safePlayVideo(tartagliaHead);
+  await new Promise((resolve) => {
+    const fallback = window.setTimeout(resolve, 4700);
+    const done = () => {
+      window.clearTimeout(fallback);
+      tartagliaHead.removeEventListener("ended", done);
+      resolve();
+    };
+    tartagliaHead.addEventListener("ended", done, { once: true });
+  });
+  app.classList.remove("look-pause");
+  if (thenSee && tartagliaSee) {
+    tartagliaSee.currentTime = 0;
+    if (tartagliaBg) tartagliaBg.pause();
+    showVideoLayer("see");
+    safePlayVideo(tartagliaSee);
+  } else {
+    showBgVideo();
+  }
 }
 
 function setSeaVolume(value, seconds = 1.2) {
@@ -158,6 +281,8 @@ function resetIdleTimer() {
 async function playIdleLife() {
   if (locked || step === "intro" || step === "final") return;
   app.classList.add("idle-alive");
+  setSeaVolume(0.01, 4.5);
+  setMusicVolume(Math.max(musicTarget, 0.018), 7);
   cursorBreath.style.setProperty("--cursor-x", `${lastPointer.x}px`);
   cursorBreath.style.setProperty("--cursor-y", `${lastPointer.y}px`);
   const buttons = [...actions.querySelectorAll(".option")];
@@ -168,6 +293,7 @@ async function playIdleLife() {
   await sleep(1600);
   app.classList.remove("idle-alive");
   if (target) target.classList.remove("idle-shift");
+  setSeaVolume(deepStateStarted ? 0.007 : 0.004, 5);
   resetIdleTimer();
 }
 
@@ -187,6 +313,7 @@ function addNotice(text) {
 function markRefusal(level = 1) {
   refusalCount += level;
   setSeaVolume(refusalCount >= 2 ? 0.001 : 0.004, 0.35);
+  setMusicVolume(refusalCount >= 2 ? 0.008 : 0.012, 3.5);
   app.classList.add("unhappy", `refusal-${Math.min(refusalCount, 4)}`, "shake-soft");
   actions.classList.add("drifted");
   setTimeout(() => app.classList.remove("shake-soft"), 760);
@@ -207,15 +334,35 @@ function startWinter() {
   if (winterStarted) return;
   winterStarted = true;
   app.classList.add("winter-state");
+  setMusicVolume(0.02, 7);
   snowLayer.innerHTML = "";
-  for (let i = 0; i < 26; i += 1) {
-    const flake = document.createElement("i");
-    flake.style.setProperty("--x", `${Math.random() * 100}%`);
-    flake.style.setProperty("--delay", `${Math.random() * -10}s`);
-    flake.style.setProperty("--dur", `${8 + Math.random() * 8}s`);
-    flake.style.setProperty("--size", `${1 + Math.random() * 2.2}px`);
-    snowLayer.append(flake);
-  }
+  const depths = [
+    { name: "far", count: 24, size: [0.8, 1.8], duration: [28, 46], opacity: [0.12, 0.28], blur: [0.4, 1.4] },
+    { name: "mid", count: 18, size: [1.2, 3.2], duration: [20, 34], opacity: [0.18, 0.42], blur: [0, 0.9] },
+    { name: "near", count: 8, size: [2.2, 5.8], duration: [16, 26], opacity: [0.14, 0.32], blur: [1.2, 3.2] },
+  ];
+  depths.forEach((depth) => {
+    for (let i = 0; i < depth.count; i += 1) {
+      const mote = document.createElement("i");
+      const size = depth.size[0] + Math.random() * (depth.size[1] - depth.size[0]);
+      const duration = depth.duration[0] + Math.random() * (depth.duration[1] - depth.duration[0]);
+      const opacity = depth.opacity[0] + Math.random() * (depth.opacity[1] - depth.opacity[0]);
+      const blur = depth.blur[0] + Math.random() * (depth.blur[1] - depth.blur[0]);
+      mote.className = `mote ${depth.name}${Math.random() > 0.78 ? " trail" : ""}`;
+      mote.style.setProperty("--x", `${Math.random() * 104 - 2}%`);
+      mote.style.setProperty("--y", `${Math.random() * 110 - 8}%`);
+      mote.style.setProperty("--delay", `${Math.random() * -duration}s`);
+      mote.style.setProperty("--dur", `${duration}s`);
+      mote.style.setProperty("--size", `${size}px`);
+      mote.style.setProperty("--alpha", opacity);
+      mote.style.setProperty("--blur", `${blur}px`);
+      mote.style.setProperty("--drift-x", `${(Math.random() * 2 - 1) * (18 + size * 4)}px`);
+      mote.style.setProperty("--drift-y", `${18 + Math.random() * 52}px`);
+      mote.style.setProperty("--waver", `${(Math.random() * 2 - 1) * 10}px`);
+      snowLayer.append(mote);
+    }
+  });
+  snowLayer.classList.add("alive");
 }
 
 async function enterDeepState() {
@@ -225,6 +372,7 @@ async function enterDeepState() {
   app.classList.add("deep-state");
   deepStateStarted = true;
   setSeaVolume(0.009, 2.5);
+  setMusicVolume(0.032, 8);
   await sleep(1200);
 }
 
@@ -435,7 +583,9 @@ async function runAfterMonologueLine(options = {}) {
   if ((!afterSelection && locked) || step === "final") return false;
   clearCardInstant();
   setSeaVolume(0.0001, 0.5);
+  setMusicVolume(0.018, 4);
   app.classList.add("deep-strong");
+  await playHeadLook({ thenSee: true, force: true });
   await typeIntrusion("啊，别露出那种表情。", { y: "lower-mid", linger: 620, connected: true, keep: true });
   await typeIntrusion("我开玩笑的。", { y: "lower-mid", linger: 620, connected: true, keep: true });
   await sleep(900);
@@ -453,6 +603,7 @@ async function runAfterMonologueLine(options = {}) {
     keep: true,
   });
   setSeaVolume(0.0001, 0.2);
+  setMusicVolume(0.026, 9);
   await new Promise((resolve) => enableIntrusionContinue(resolve));
   return true;
 }
@@ -492,6 +643,7 @@ async function showDeepChance(nextStep) {
   chanceUsed = true;
   locked = true;
   clearCardInstant();
+  app.classList.add("chance-rise");
   veil.className = "veil white deep-rise";
   veil.innerHTML = '<div class="deep-word">真巧。</div><button class="continue-hit" type="button">点击继续</button>';
   const button = veil.querySelector(".continue-hit");
@@ -507,6 +659,7 @@ async function showDeepChance(nextStep) {
   await sleep(650);
   veil.className = "veil";
   veil.textContent = "";
+  app.classList.remove("chance-rise");
   setNarwhal(3, true);
   await transitionTo(nextStep, { lowerLoad: true, fade: 180 });
 }
@@ -578,6 +731,7 @@ async function choose(label, button) {
       markRefusal();
       button.classList.add("resist");
       setNarwhal(4, true);
+      await playHeadLook();
       await enterLiyueRoute(button, { delay: 520 });
       return;
     }
@@ -674,6 +828,7 @@ async function renderFinal(willing) {
   step = "final";
   finalExitAttempted = false;
   app.classList.add("dark", "quiet", "taken", "final-close");
+  setMusicVolume(0.046, 10);
   setNarwhal(5, false);
   noticeStack.innerHTML = "";
   kicker.textContent = "";
@@ -752,6 +907,7 @@ async function renderColdEnding() {
   locked = true;
   app.classList.remove("dark");
   app.classList.add("cold-end");
+  setMusicVolume(0.02, 8);
   title.textContent = "";
   subtitle.textContent = "";
   actions.innerHTML = "";
@@ -767,6 +923,18 @@ window.addEventListener("pointerdown", () => {
   armAudio();
   resetIdleTimer();
 });
-window.addEventListener("keydown", resetIdleTimer);
+window.addEventListener("keydown", () => {
+  startAmbientMusic();
+  resetIdleTimer();
+});
+if (ambientBgm) {
+  ambientBgm.volume = 0;
+  ambientBgm.addEventListener("timeupdate", watchMusicLoop);
+}
 
+window.addEventListener("load", () => {
+  startAmbientMusic();
+});
+
+startAmbientMusic();
 renderIntro();
